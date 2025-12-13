@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SDRWealth</title>
+    
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;800&family=Montserrat:wght@400;500;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #FFEA00;
+            --apex-blue: #0085FF;
+            --bg: #050505;
+            --text: #ffffff;
+            --font-main: 'Manrope', sans-serif;
+            --font-logo: 'Montserrat', sans-serif;
+            
+            --card-width: 35vw;
+            --card-gap: 4vw;
+            --card-radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            overflow-x: hidden; 
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        body::-webkit-scrollbar { display: none; }
+
+        /* --- LOADER --- */
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999;
+            background-color: #000;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.6s ease-out, visibility 0.6s;
+            will-change: opacity;
+        }
+        .loader-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+            z-index: 0;
+        }
+        .loader-text {
+            position: relative; z-index: 10;
+            font-family: var(--font-main); font-weight: 800; font-size: 24px;
+            color: #fff; letter-spacing: -0.03em;
+            animation: pulse 2s infinite;
+        }
+        .loader-text span { color: var(--primary); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+            50% { opacity: 0.5; transform: scale(0.98); filter: blur(2px); }
+        }
+
+        /* --- BACKGROUND --- */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+            background: #020202;
+        }
+        .bg-noise {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; opacity: 0; transition: opacity 1s ease;
+            background-repeat: repeat;
+        }
+        .bg-noise.is-active { opacity: 0.09; animation: noise-shift 0.2s steps(3) infinite; }
+        @keyframes noise-shift { 0% { background-position: 0 0; } 100% { background-position: 100px 100px; } }
+
+        /* --- UI --- */
+        .header { position: fixed; top: 40px; left: 40px; z-index: 200; opacity: 0; transition: opacity 0.8s ease; }
+        .header.is-visible { opacity: 1; }
+        .brand { font-family: var(--font-main); font-weight: 800; font-size: 18px; letter-spacing: -0.03em; color: #fff; text-decoration: none; }
+        .brand span { color: var(--primary); }
+
+        /* --- SECTION 1: SLIDERS --- */
+        #section-sliders {
+            position: relative; height: 100vh; width: 100%;
+            z-index: 10; display: flex; align-items: center; justify-content: center;
+            overflow: hidden; touch-action: pan-y; opacity: 0; transition: opacity 0.8s ease;
+        }
+        #section-sliders.is-visible { opacity: 1; }
+
+        .progress-line {
+            position: absolute; bottom: 40px; left: 40px; right: 40px;
+            height: 2px; background: rgba(255,255,255,0.1);
+            z-index: 200; pointer-events: none;
+        }
+        .progress-fill { height: 100%; background: var(--primary); width: 0%; box-shadow: 0 0 10px rgba(255, 234, 0, 0.4); }
+
+        .scroll-wrapper {
+            position: absolute; top: 50%; left: 0; transform: translateY(-50%);
+            display: flex; align-items: center; cursor: grab;
+            height: 60vh; width: 100%; z-index: 50; will-change: transform; 
+        }
+        .scroll-wrapper:active { cursor: grabbing; }
+
+        .card {
+            position: relative; width: var(--card-width); max-width: 460px; min-width: 280px; height: 55vh;
+            margin-right: var(--card-gap); flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end;
+            border-radius: var(--card-radius); overflow: hidden; background: #0a0a0a;
+            will-change: transform, opacity; transform: scale(0.9); opacity: 0.3; filter: grayscale(100%) blur(5px) brightness(0.4); 
+        }
+        .card-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .card-bg img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.2); transition: transform 0.6s ease; opacity: 0.7; pointer-events: none; }
+        .card-content { position: relative; z-index: 2; padding: 30px; background: linear-gradient(to top, #000 0%, rgba(0,0,0,0.6) 60%, transparent 100%); transform: translateY(10px); opacity: 0; transition: all 0.4s ease; }
+        .card-num { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--primary); margin-bottom: 8px; display: block; text-transform: uppercase; }
+        .card-title { font-size: 32px; font-weight: 600; line-height: 1; color: white; letter-spacing: -0.04em; margin-bottom: 6px; }
+        .card-sub { font-size: 14px; color: #888; font-weight: 400; }
+        .card.is-active .card-content { transform: translateY(0); opacity: 1; }
+        .card.is-active .card-bg img { transform: scale(1); opacity: 1; }
+        .card-link { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: pointer; -webkit-user-drag: none; }
+
+        /* --- GENERIC SECTION STYLES --- */
+        .section-wrapper {
+            position: relative; z-index: 10;
+            padding: 120px 40px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            max-width: 1400px; margin: 0 auto;
+            opacity: 0; transform: translateY(30px);
+            transition: opacity 1s ease, transform 1s ease;
+        }
+        .section-wrapper.is-visible { opacity: 1; transform: translateY(0); }
+
+        .sec-label { font-size: 12px; color: var(--primary); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 20px; display: block; font-weight: 700; }
+        
+        /* --- SECTION 2: ABOUT SDR (SPLIT LAYOUT) --- */
+        .about-layout {
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 40px 60px; 
+            align-items: start;
+        }
+        
+        .about-header { grid-column: 1; grid-row: 1; }
+        .about-body   { grid-column: 1; grid-row: 2; }
+        
+        /* DESKTOP IMAGE: Matches Card Dimensions */
+        .about-image  { 
+            grid-column: 2; 
+            grid-row: 1 / span 2; 
+            align-self: center;
+            justify-self: end; 
+            
+            width: 100%;
+            max-width: 460px; /* Desktop max width */
+            height: 55vh;     /* Desktop height matching sliders */
+            
+            overflow: hidden; border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transition: transform 0.5s ease;
+        }
+        
+        .about-image img { 
+            width: 100%; height: 100%; object-fit: cover; display: block; 
+        }
+        .about-image:hover { transform: scale(1.02); }
+
+        .manifesto-title {
+            font-family: var(--font-logo); font-size: 4vw; line-height: 1.1; font-weight: 500;
+            color: #fff; margin-bottom: 20px;
+        }
+        .manifesto-body {
+            font-size: 18px; line-height: 1.6; color: #888; max-width: 90%;
+        }
+
+        /* --- SECTION 3: APEX (Footer) --- */
+        #section-apex {
+            position: relative; height: 60vh; width: 100%; z-index: 10;
+            display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+            opacity: 0; transition: opacity 1s ease;
+        }
+        #section-apex.is-visible { opacity: 1; }
+
+        .apex-logo {
+            font-family: var(--font-logo); font-weight: 900; font-size: 10vw; letter-spacing: -0.05em; line-height: 1; color: #fff; text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1); 
+            margin-bottom: 5px; text-align: left;
+        }
+        .apex-logo span { display: inline-block; opacity: 0; transform: translateY(10px); }
+        .apex-logo.start-anim span { animation: typeReveal 0.1s forwards; }
+        .apex-logo.start-anim span:nth-child(1) { animation-delay: 0.1s; }
+        .apex-logo.start-anim span:nth-child(2) { animation-delay: 0.25s; }
+        .apex-logo.start-anim span:nth-child(3) { animation-delay: 0.4s; }
+        .apex-logo.start-anim span:nth-child(4) { animation-delay: 0.6s; }
+        @keyframes typeReveal { to { opacity: 1; transform: translateY(0); } }
+        .apex-logo span.highlight { color: var(--apex-blue); text-shadow: 0 0 20px rgba(0, 133, 255, 0.4); }
+        
+        .subtitle { 
+            font-size: 14px; letter-spacing: 0.4em; text-transform: uppercase; color: #888; 
+            opacity: 0; transition: opacity 1.5s ease 0.8s;
+            margin-bottom: 40px; margin-left: 0; padding-left: 2px;
+        }
+        .subtitle.is-visible { opacity: 1; }
+
+        .footer-body { font-size: 18px; line-height: 1.6; color: #888; max-width: 600px; margin-left: auto; }
+        #section-apex { padding-bottom: 150px; }
+
+        @media (max-width: 768px) {
+            :root { --card-width: 80vw; --card-gap: 5vw; }
+            .header { top: 30px; left: 30px; }
+            .card-title { font-size: 26px; }
+            .apex-logo { font-size: 20vw; }
+            .progress-line { left: 30px; right: 30px; bottom: 15%; }
+            
+            .section-wrapper { padding: 80px 20px; }
+            .manifesto-title { font-size: 32px; }
+            .footer-body { margin-left: 0; }
+
+            .about-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 30px;
+            }
+            .about-header { order: 1; } 
+            
+            /* MOBILE IMAGE ADJUSTMENT */
+            .about-image  { 
+                order: 2; 
+                justify-self: center;
+                width: 100%;
+                /* FIXED: 1:1 Aspect Ratio for Mobile */
+                aspect-ratio: 1 / 1; 
+                height: auto; /* Allow auto height based on ratio */
+                max-width: 100%; /* Fill container width */
+            }
+            
+            .about-body   { order: 3; } 
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOADER -->
+    <div id="loader">
+        <div class="loader-bg"></div>
+        <div class="loader-text">SDR<span>Wealth</span></div>
+    </div>
+
+    <!-- BACKGROUND -->
+    <div class="bg-layer">
+        <div class="bg-noise" id="bg-noise"></div>
+    </div>
+
+    <!-- UI -->
+    <header class="header" id="header">
+        <a href="#" class="brand">SDR<span>Wealth</span></a>
+    </header>
+
+    <!-- 1. SLIDERS -->
+    <section id="section-sliders">
+        <div class="progress-line">
+            <div class="progress-fill"></div>
+        </div>
+        <div class="scroll-wrapper" id="track">
+            <!-- Cards -->
+            <div class="card">
+                <a href="afm/index.html" class="card-link"></a>
+                <div class="card-bg"><img src="assets/afm-banner.jpg" alt="AFM"></div>
+                <div class="card-content"><span class="card-num">01 / SYSTEM</span><h2 class="card-title">AFM Protocol</h2><p class="card-sub">Wealth Infrastructure</p></div>
+            </div>
+            <div class="card">
+                <a href="https://discord.gg/ncrWWRwUjt" class="card-link"></a>
+                <div class="card-bg"><img src="assets/apex.png" alt="Apex"></div>
+                <div class="card-content"><span class="card-num">02 / NETWORK</span><h2 class="card-title">The Apex</h2><p class="card-sub">Community Access</p></div>
+            </div>
+            <div class="card">
+                <a href="#" class="card-link"></a>
+                <div class="card-bg"><img src="assets/pre-reset.jpg" alt="Reset"></div>
+                <div class="card-content"><span class="card-num">03 / ARCHIVE</span><h2 class="card-title">Pre-Reset</h2><p class="card-sub">Legacy Data Logs</p></div>
+            </div>
+            <div class="card">
+                <a href="#section-about" class="card-link"></a>
+                <div class="card-bg"><img src="assets/sdr.png" alt="SDR"></div>
+                <div class="card-content"><span class="card-num">04 / IDENTITY</span><h2 class="card-title">About SDR</h2><p class="card-sub">Origin & Philosophy</p></div>
+            </div>
+            <div class="card">
+                <a href="#" class="card-link"></a>
+                <div class="card-bg"><img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop" alt="Contact"></div>
+                <div class="card-content"><span class="card-num">05 / UPLINK</span><h2 class="card-title">Contact</h2><p class="card-sub">Secure Channel</p></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. ABOUT SDR -->
+    <section class="section-wrapper" id="section-about">
+        <div class="about-layout">
+            
+            <!-- HEADER -->
+            <div class="about-header">
+                <span class="sec-label">00 / Identity</span>
+                <h2 class="manifesto-title">About SDR</h2>
+            </div>
+
+            <!-- IMAGE -->
+            <div class="about-image">
+                <img src="assets/sdr.png" alt="SDR Identity">
+            </div>
+
+            <!-- BODY -->
+            <div class="about-body">
+                <p class="manifesto-body">
+                    I am not a guru. I do not have a camera crew. I am a student currently fighting to save my academic trajectory before the final deadline.
+                    <br><br>
+                    SDRWealth began as a documentation of high-performance, but in late 2024, I hit a wall. Dopamine burnout. The gap between my potential and my output became unbearable.
+                    <br><br>
+                    I went dark to code these weapons (AFM) not to sell them, but to survive. I am not teaching you; I am documenting my own rescue.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- 3. APEX FOOTER -->
+    <section class="section-wrapper" id="section-apex">
+        <span class="sec-label">01 / The Ecosystem</span>
+        
+        <div class="apex-logo" id="logo-text">
+            <span>A</span><span>P</span><span>E</span><span class="highlight">X</span>
+        </div>
+        
+        <div class="subtitle" id="subtitle-text">THE RESEARCH LAB</div>
+        
+        <p class="footer-body">
+            A real-world ecosystem that functions as a controlled environment for transformation.
+        </p>
+    </section>
+
+    <script>
+        // --- 1. GENERATE NOISE ---
+        function generateNoise() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200; canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            for (let x = 0; x < 200; x+=2) {
+                for (let y = 0; y < 200; y+=2) {
+                    if (Math.random() > 0.9) {
+                        ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+            document.getElementById('bg-noise').style.backgroundImage = `url(${canvas.toDataURL()})`;
+        }
+        generateNoise();
+
+        // --- 2. LOADER ---
+        const loader = document.getElementById('loader');
+        function hideLoader() {
+            if(!loader) return;
+            loader.style.opacity = '0';
+            loader.style.visibility = 'hidden';
+            setTimeout(() => {
+                document.getElementById('section-sliders').classList.add('is-visible');
+                document.getElementById('header').classList.add('is-visible');
+                document.getElementById('bg-noise').classList.add('is-active');
+            }, 300);
+        }
+        window.addEventListener('load', () => setTimeout(hideLoader, 500));
+        setTimeout(hideLoader, 3000); 
+
+        // --- 3. SCROLL OBSERVER ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) {
+                    if(entry.target.classList.contains('section-wrapper')) {
+                        entry.target.classList.add('is-visible');
+                    }
+                    if(entry.target.id === 'section-apex') {
+                        document.getElementById('logo-text').classList.add('start-anim');
+                        document.getElementById('subtitle-text').classList.add('is-visible');
+                    }
+                }
+            });
+        }, { threshold: 0.2 });
+
+        document.querySelectorAll('.section-wrapper').forEach(sec => observer.observe(sec));
+
+        // --- 4. SLIDER LOGIC ---
+        const track = document.getElementById('track');
+        const progressBar = document.querySelector('.progress-fill');
+        const originalCards = Array.from(document.querySelectorAll('.card'));
+        const cardCount = originalCards.length;
+        originalCards.forEach(card => { let clone = card.cloneNode(true); clone.classList.add('clone'); track.appendChild(clone); });
+        for(let i = cardCount - 1; i >= 0; i--) { let clone = originalCards[i].cloneNode(true); clone.classList.add('clone'); track.insertBefore(clone, track.firstChild); }
+        const allCards = document.querySelectorAll('.card');
+
+        allCards.forEach(card => {
+            const link = card.querySelector('a');
+            if(link) { link.addEventListener('click', (e) => { if(didMove) e.preventDefault(); }); }
+        });
+
+        let width = 0; let totalWidth = 0; let currentScroll = 0; let targetScroll = 0;
+        let isDragging = false; let didMove = false;
+        const lerp = 0.1; const dragSpeed = 2.0;
+
+        let cardBaseWidth = 0;
+        function resize() {
+            if(allCards.length === 0) return;
+            const style = window.getComputedStyle(allCards[0]);
+            const w = allCards[0].offsetWidth; 
+            const m = parseFloat(style.marginRight);
+            width = w + m; 
+            totalWidth = width * cardCount;
+            cardBaseWidth = w;
+            if(currentScroll === 0) { currentScroll = totalWidth; targetScroll = totalWidth; }
+        }
+        window.addEventListener('resize', resize);
+        resize(); animate();
+
+        function animate() {
+            currentScroll += (targetScroll - currentScroll) * lerp;
+            if (currentScroll >= totalWidth * 2) { currentScroll -= totalWidth; targetScroll -= totalWidth; } 
+            else if (currentScroll <= 0) { currentScroll += totalWidth; targetScroll += totalWidth; }
+
+            const centerOffset = (window.innerWidth / 2) - (cardBaseWidth / 2);
+            const renderX = currentScroll - centerOffset;
+            track.style.transform = `translate3d(${-renderX}px, -50%, 0)`;
+
+            let relativePos = (currentScroll % totalWidth) / totalWidth;
+            if (relativePos < 0) relativePos += 1;
+            progressBar.style.width = `${relativePos * 100}%`;
+
+            const screenCenter = window.innerWidth / 2;
+            for (let i = 0; i < allCards.length; i++) {
+                const card = allCards[i];
+                const cardCenter = (i * width) - renderX + (cardBaseWidth / 2);
+                const dist = Math.abs(screenCenter - cardCenter);
+                
+                if (dist < window.innerWidth) {
+                    let focus = 1 - (dist / (window.innerWidth * 0.6));
+                    if (focus < 0) focus = 0;
+                    const scale = 0.9 + (focus * 0.15); 
+                    const opacity = 0.3 + (focus * 0.7);
+                    const brightness = 0.4 + (focus * 0.6); 
+                    const blur = (1 - focus) * 6;
+                    const gray = (1 - focus) * 100;
+                    card.style.transform = `scale(${scale})`;
+                    card.style.opacity = opacity;
+                    card.style.filter = `grayscale(${gray}%) blur(${blur}px) brightness(${brightness})`;
+                    if (focus > 0.85) { if (!card.classList.contains('is-active')) card.classList.add('is-active'); } 
+                    else { if (card.classList.contains('is-active')) card.classList.remove('is-active'); }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        let startX = 0; let startY = 0; let startS = 0; let isVertical = false; let snapTimeout;
+        const sliderSection = document.getElementById('section-sliders');
+
+        function snap() { const rawSlot = Math.round(targetScroll / width); targetScroll = rawSlot * width; }
+
+        function onStart(e) {
+            isDragging = true; didMove = false; isVertical = false;
+            startX = e.touches ? e.touches[0].clientX : e.clientX;
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            startS = targetScroll; track.style.cursor = 'grabbing';
+            clearTimeout(snapTimeout);
+        }
+
+        function onMove(e) {
+            if(!isDragging) return;
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            if(!didMove && e.touches) {
+                const dx = Math.abs(x - startX); const dy = Math.abs(y - startY);
+                if(dy > dx) { isVertical = true; } 
+            }
+            if(isVertical) return; 
+            if(Math.abs(x - startX) > 5) didMove = true;
+            if(e.cancelable) e.preventDefault(); 
+            targetScroll = startS + (startX - x) * dragSpeed;
+        }
+
+        function onEnd() { isDragging = false; track.style.cursor = 'grab'; snap(); }
+
+        sliderSection.addEventListener('mousedown', onStart);
+        sliderSection.addEventListener('touchstart', onStart, { passive: false });
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchend', onEnd);
+        track.addEventListener('wheel', e => {
+            e.preventDefault();
+            targetScroll += e.deltaY * 0.5;
+            clearTimeout(snapTimeout);
+            snapTimeout = setTimeout(snap, 150);
+        }, { passive: false });
+
+    </script>
+</body>
+</html>
